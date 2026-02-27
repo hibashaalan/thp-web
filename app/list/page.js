@@ -10,8 +10,8 @@ export default function ListPage() {
   const [index, setIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [voteState, setVoteState] = useState(null) // 'up' | 'down' | null
-  const [animating, setAnimating] = useState(null) // 'left' | 'right' | null
+  const [voteState, setVoteState] = useState(null)
+  const [animating, setAnimating] = useState(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -40,14 +40,13 @@ export default function ListPage() {
       setIndex(i => i + 1)
       setVoteState(null)
       setAnimating(null)
-    }, 350)
+    }, 380)
   }, [])
 
   const vote = useCallback(async (value) => {
     if (saving || !current) return
     setVoteState(value === 1 ? 'up' : 'down')
     setSaving(true)
-
     try {
       await fetch('/api/vote', {
         method: 'POST',
@@ -55,17 +54,15 @@ export default function ListPage() {
         body: JSON.stringify({ captionId: current.id, vote: value }),
       })
     } catch (_) {}
-
     setSaving(false)
     advance(value === 1 ? 'right' : 'left')
   }, [saving, current, advance])
 
   const skip = useCallback(() => {
     if (!current) return
-    advance('left')
+    advance('up')
   }, [current, advance])
 
-  // Keyboard support
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'ArrowRight') vote(1)
@@ -76,16 +73,19 @@ export default function ListPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [vote, skip])
 
+  const progress = captions.length > 0 ? (index / captions.length) * 100 : 0
+
   return (
     <>
       <Nav />
       <main style={{
-        minHeight: 'calc(100vh - 60px)',
+        minHeight: 'calc(100vh - 64px)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1.5rem',
+        background: 'var(--bg)',
       }}>
         {loading ? (
           <LoadingSkeleton />
@@ -96,20 +96,33 @@ export default function ListPage() {
         ) : !current ? (
           <DoneState total={captions.length} />
         ) : (
-          <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
-
-            {/* Progress bar */}
+          <div style={{
+            width: '100%',
+            maxWidth: 460,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 20,
+            animation: 'fadeUp 0.4s ease both',
+          }}>
+            {/* Progress */}
             <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ flex: 1, height: 3, background: 'var(--surface2)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{
+                flex: 1, height: 4, background: 'var(--surface2)',
+                borderRadius: 4, overflow: 'hidden',
+              }}>
                 <div style={{
                   height: '100%',
-                  width: `${(index / captions.length) * 100}%`,
-                  background: 'var(--accent)',
-                  borderRadius: 2,
-                  transition: 'width 0.3s ease',
+                  width: `${progress}%`,
+                  background: 'linear-gradient(90deg, var(--accent), var(--accent-light))',
+                  borderRadius: 4,
+                  transition: 'width 0.4s ease',
                 }} />
               </div>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <span style={{
+                fontSize: 12, color: 'var(--text-muted)', fontWeight: 500,
+                whiteSpace: 'nowrap', flexShrink: 0, fontVariantNumeric: 'tabular-nums',
+              }}>
                 {index + 1} / {captions.length}
               </span>
             </div>
@@ -129,93 +142,128 @@ export default function ListPage() {
                 borderRadius: 20,
                 overflow: 'hidden',
                 boxShadow: voteState === 'up'
-                  ? '0 0 40px rgba(232,197,71,0.15)'
+                  ? '0 8px 40px rgba(196,146,42,0.2)'
                   : voteState === 'down'
-                  ? '0 0 40px rgba(224,92,92,0.15)'
-                  : '0 8px 40px rgba(0,0,0,0.4)',
+                  ? '0 8px 40px rgba(192,57,43,0.15)'
+                  : 'var(--shadow-lg)',
                 transform: animating === 'right'
-                  ? 'translateX(120%) rotate(12deg)'
+                  ? 'translateX(130%) rotate(14deg)'
                   : animating === 'left'
-                  ? 'translateX(-120%) rotate(-12deg)'
+                  ? 'translateX(-130%) rotate(-14deg)'
+                  : animating === 'up'
+                  ? 'translateY(-120%) scale(0.92)'
                   : 'translateX(0) rotate(0deg)',
                 opacity: animating ? 0 : 1,
                 transition: animating
-                  ? 'transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease'
-                  : 'border-color 0.15s, box-shadow 0.15s',
+                  ? 'transform 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.38s ease'
+                  : 'border-color 0.2s, box-shadow 0.2s',
               }}
             >
-              {/* Vote stamp badges */}
-              {voteState === 'up' && <VoteBadge label="FUNNY" color="var(--accent)" textColor="#000" side="right" />}
+              {/* Stamp badges */}
+              {voteState === 'up' && <VoteBadge label="FUNNY" color="var(--accent)" textColor="#1c1a17" side="right" />}
               {voteState === 'down' && <VoteBadge label="MEH" color="var(--danger)" textColor="#fff" side="left" />}
 
               {/* Image */}
-              {current.images?.url && (
-                <div style={{ position: 'relative', paddingBottom: '65%', overflow: 'hidden', background: 'var(--bg)' }}>
-                  <img
-                    src={current.images.url}
-                    alt="caption image"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                </div>
-              )}
+              <div style={{
+                position: 'relative',
+                paddingBottom: '62%',
+                overflow: 'hidden',
+                background: 'var(--bg2)',
+              }}>
+                <img
+                  src={current.images.url}
+                  alt="caption image"
+                  style={{
+                    position: 'absolute', inset: 0,
+                    width: '100%', height: '100%',
+                    objectFit: 'cover',
+                    transition: 'transform 0.4s ease',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                />
+              </div>
 
               {/* Caption */}
-              <div style={{ padding: '1.5rem 1.75rem 1.75rem' }}>
+              <div style={{ padding: '1.4rem 1.75rem 1.75rem' }}>
                 <p style={{
-                  fontFamily: 'Playfair Display, serif',
+                  fontFamily: 'Fraunces, serif',
                   fontStyle: 'italic',
-                  fontSize: 'clamp(1.05rem, 2.5vw, 1.3rem)',
-                  lineHeight: 1.55,
+                  fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
+                  lineHeight: 1.6,
                   color: 'var(--text)',
+                  fontWeight: 400,
                 }}>
                   "{current.content}"
                 </p>
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-              <ActionButton onClick={() => vote(-1)} disabled={saving} color="var(--danger)" label="Meh" title="Meh (←)">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: 16,
+              alignItems: 'center',
+              marginTop: 4,
+            }}>
+              <ActionButton
+                onClick={() => vote(-1)}
+                disabled={saving}
+                color="var(--danger)"
+                bgHover="var(--danger-pale)"
+                label="Meh"
+                title="Meh (←)"
+                size={64}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </ActionButton>
 
-              <button
-                onClick={skip}
-                title="Skip"
-                style={{
-                  width: 44, height: 44, borderRadius: '50%',
-                  border: '1px solid var(--border)', background: 'var(--surface2)',
-                  color: 'var(--text-muted)', fontSize: 18,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                }}
-              >
-                ↷
-              </button>
+              <SkipButton onClick={skip} />
 
-              <ActionButton onClick={() => vote(1)} disabled={saving} color="var(--accent)" label="Funny" title="Funny (→)">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <ActionButton
+                onClick={() => vote(1)}
+                disabled={saving}
+                color="var(--accent)"
+                bgHover="var(--accent-pale)"
+                label="Funny"
+                title="Funny (→)"
+                size={64}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
               </ActionButton>
             </div>
 
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', opacity: 0.5 }}>
-              use ← → arrow keys to vote
-            </p>
+            <div style={{
+              display: 'flex',
+              gap: 16,
+              alignItems: 'center',
+            }}>
+              <KbdHint keys={['←']} label="meh" />
+              <KbdHint keys={['↓']} label="skip" />
+              <KbdHint keys={['→']} label="funny" />
+            </div>
           </div>
         )}
       </main>
+
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </>
   )
 }
 
-function ActionButton({ onClick, disabled, color, label, title, children }) {
+function ActionButton({ onClick, disabled, color, bgHover, label, title, size, children }) {
   const [hover, setHover] = useState(false)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
       <button
         onClick={onClick}
         disabled={disabled}
@@ -223,22 +271,77 @@ function ActionButton({ onClick, disabled, color, label, title, children }) {
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          width: 68, height: 68, borderRadius: '50%',
+          width: size, height: size, borderRadius: '50%',
           border: `2px solid ${color}`,
-          background: hover ? color : 'transparent',
-          color: hover ? (color === 'var(--accent)' ? '#000' : '#fff') : color,
+          background: hover ? bgHover : 'var(--surface)',
+          color: color,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          opacity: disabled ? 0.5 : 1,
-          transition: 'all 0.15s',
-          boxShadow: hover ? `0 4px 24px ${color}55` : 'none',
+          opacity: disabled ? 0.4 : 1,
+          transition: 'all 0.18s',
+          transform: hover ? 'scale(1.08)' : 'scale(1)',
+          boxShadow: hover ? `0 6px 20px ${color}30` : 'var(--shadow-sm)',
         }}
       >
         {children}
       </button>
-      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+      <span style={{
+        fontSize: 11, color: 'var(--text-muted)', fontWeight: 600,
+        letterSpacing: '0.07em', textTransform: 'uppercase',
+      }}>
         {label}
       </span>
+    </div>
+  )
+}
+
+function SkipButton({ onClick }) {
+  const [hover, setHover] = useState(false)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, marginBottom: 0 }}>
+      <button
+        onClick={onClick}
+        title="Skip (↓)"
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          width: 44, height: 44, borderRadius: '50%',
+          border: '1.5px solid var(--border)',
+          background: hover ? 'var(--surface2)' : 'var(--surface)',
+          color: hover ? 'var(--text-mid)' : 'var(--text-muted)',
+          fontSize: 18,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+          transform: hover ? 'scale(1.06)' : 'scale(1)',
+        }}
+      >
+        ↷
+      </button>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+        Skip
+      </span>
+    </div>
+  )
+}
+
+function KbdHint({ keys, label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      {keys.map(k => (
+        <kbd key={k} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 22, height: 22, borderRadius: 5,
+          border: '1px solid var(--border)',
+          background: 'var(--surface)',
+          fontSize: 11, color: 'var(--text-muted)',
+          fontFamily: 'Instrument Sans, sans-serif',
+          boxShadow: '0 1px 0 var(--border)',
+        }}>
+          {k}
+        </kbd>
+      ))}
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 2 }}>{label}</span>
     </div>
   )
 }
@@ -246,13 +349,15 @@ function ActionButton({ onClick, disabled, color, label, title, children }) {
 function VoteBadge({ label, color, textColor, side }) {
   return (
     <div style={{
-      position: 'absolute', top: 20, [side]: 20, zIndex: 10,
+      position: 'absolute', top: 18, [side]: 18, zIndex: 10,
       background: color, color: textColor,
-      padding: '6px 14px', borderRadius: 8,
-      fontWeight: 700, fontSize: 18, letterSpacing: '0.08em',
-      transform: side === 'right' ? 'rotate(12deg)' : 'rotate(-12deg)',
-      border: `2px solid ${textColor === '#fff' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)'}`,
+      padding: '5px 13px', borderRadius: 8,
+      fontWeight: 700, fontSize: 16, letterSpacing: '0.1em',
+      transform: side === 'right' ? 'rotate(10deg)' : 'rotate(-10deg)',
+      border: '2px solid rgba(0,0,0,0.12)',
+      fontFamily: 'Instrument Sans, sans-serif',
       pointerEvents: 'none',
+      boxShadow: '0 3px 12px rgba(0,0,0,0.15)',
     }}>
       {label}
     </div>
@@ -261,15 +366,18 @@ function VoteBadge({ label, color, textColor, side }) {
 
 function LoadingSkeleton() {
   return (
-    <div style={{ width: '100%', maxWidth: 480 }}>
+    <div style={{ width: '100%', maxWidth: 460 }}>
       <div style={{
-        background: 'var(--surface)', borderRadius: 20, overflow: 'hidden',
-        border: '2px solid var(--border)', animation: 'pulse 1.5s ease infinite',
+        background: 'var(--surface)',
+        borderRadius: 20,
+        overflow: 'hidden',
+        border: '2px solid var(--border)',
+        animation: 'pulse 1.8s ease infinite',
       }}>
-        <div style={{ paddingBottom: '65%', background: 'var(--surface2)' }} />
-        <div style={{ padding: '1.5rem' }}>
-          <div style={{ height: 18, background: 'var(--surface2)', borderRadius: 4, marginBottom: 10, width: '90%' }} />
-          <div style={{ height: 18, background: 'var(--surface2)', borderRadius: 4, width: '65%' }} />
+        <div style={{ paddingBottom: '62%', background: 'var(--surface2)' }} />
+        <div style={{ padding: '1.5rem 1.75rem' }}>
+          <div style={{ height: 16, background: 'var(--surface2)', borderRadius: 4, marginBottom: 10, width: '88%' }} />
+          <div style={{ height: 16, background: 'var(--surface2)', borderRadius: 4, width: '60%' }} />
         </div>
       </div>
     </div>
@@ -278,36 +386,61 @@ function LoadingSkeleton() {
 
 function EmptyState() {
   return (
-    <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-      <p style={{ fontSize: 56, marginBottom: 16 }}>📭</p>
-      <p style={{ fontSize: 18, marginBottom: 8, color: 'var(--text)' }}>Nothing here yet</p>
-      <p style={{ fontSize: 14 }}>Be the first to <Link href="/upload" style={{ color: 'var(--accent)' }}>upload an image</Link>.</p>
+    <div style={{ textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
+      <div style={{ fontSize: 64, marginBottom: 20 }}>📭</div>
+      <h2 style={{ fontSize: 24, marginBottom: 8, color: 'var(--text)' }}>Nothing here yet</h2>
+      <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>Be the first to add something funny.</p>
+      <Link href="/upload" style={{
+        display: 'inline-block',
+        background: 'var(--text)', color: 'var(--bg)',
+        padding: '10px 22px', borderRadius: 10, fontWeight: 600, fontSize: 14,
+      }}>
+        Upload an image →
+      </Link>
     </div>
   )
 }
 
 function ErrorState({ message }) {
   return (
-    <div style={{ textAlign: 'center', color: 'var(--danger)', maxWidth: 360 }}>
-      <p style={{ fontSize: 14 }}>Failed to load: {message}</p>
+    <div style={{
+      textAlign: 'center',
+      color: 'var(--danger)',
+      background: 'var(--danger-pale)',
+      border: '1.5px solid rgba(192,57,43,0.2)',
+      borderRadius: 12,
+      padding: '1.5rem 2rem',
+      maxWidth: 360,
+      fontSize: 14,
+    }}>
+      Failed to load: {message}
     </div>
   )
 }
 
 function DoneState({ total }) {
   return (
-    <div style={{ textAlign: 'center', maxWidth: 360 }}>
-      <p style={{ fontSize: 56, marginBottom: 16 }}>🎉</p>
-      <h2 style={{ fontSize: 24, marginBottom: 8 }}>You've seen them all</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
-        You rated all {total} captions. Come back later for more, or add your own.
+    <div style={{ textAlign: 'center', maxWidth: 380, animation: 'fadeUp 0.4s ease both' }}>
+      <div style={{ fontSize: 64, marginBottom: 24, animation: 'float 2.5s ease infinite' }}>🎉</div>
+      <h2 style={{ fontSize: 28, marginBottom: 10 }}>You've seen them all!</h2>
+      <p style={{ color: 'var(--text-muted)', fontSize: 15, marginBottom: 32, lineHeight: 1.7 }}>
+        You rated all {total} captions.<br/>Come back later for more — or add your own.
       </p>
       <Link href="/upload" style={{
-        display: 'inline-block', background: 'var(--accent)', color: '#000',
-        padding: '10px 24px', borderRadius: 'var(--radius-sm)', fontWeight: 600, fontSize: 14,
+        display: 'inline-block',
+        background: 'var(--text)', color: 'var(--bg)',
+        padding: '12px 28px', borderRadius: 10,
+        fontWeight: 600, fontSize: 14,
+        transition: 'opacity 0.15s',
       }}>
         Upload an image →
       </Link>
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+        }
+      `}</style>
     </div>
   )
 }
