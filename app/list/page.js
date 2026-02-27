@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import VoteButtons from './VoteButtons'
 
 export default function ListPage() {
   const [rows, setRows] = useState([])
@@ -10,14 +11,11 @@ export default function ListPage() {
   useEffect(() => {
     async function fetchData() {
       const { data, error } = await supabase
-        .from('caption_examples')
-        .select('*')
+        .from('captions')
+        .select('id, content, image_id, images(url)')
 
-      if (error) {
-        setError(error.message)
-      } else {
-        setRows(data)
-      }
+      if (error) setError(error.message)
+      else setRows(data || [])
     }
 
     fetchData()
@@ -25,19 +23,28 @@ export default function ListPage() {
 
   return (
     <div style={{ padding: '2rem' }}>
-      <h1>Supabase Data</h1>
-
+      <h1>Captions</h1>
       {error && <p>Error: {error}</p>}
 
-      <ul>
+      <ul style={{ display: 'grid', gap: 12, padding: 0, listStyle: 'none' }}>
         {rows.map((row) => (
-          <li key={row.id}>
-            <strong>ID:</strong> {row.id} <br/>
-            <strong>Caption:</strong> {row.caption}
+          <li key={row.id} style={{ border: '1px solid #ddd', padding: 12 }}>
+            {row.images?.url && (
+              <img
+                src={row.images.url}
+                alt="caption image"
+                style={{ width: 300, height: 'auto', marginBottom: 8, borderRadius: 8 }}
+              />
+            )}
+
+            <div style={{ marginBottom: 8 }}>
+              <strong>{row.content}</strong>
+            </div>
+
+            <VoteButtons captionId={row.id} />
           </li>
         ))}
       </ul>
-
     </div>
   )
 }
