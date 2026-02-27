@@ -18,11 +18,15 @@ export default function ListPage() {
     const supabase = createClient()
     supabase
       .from('captions')
-      .select('id, content, image_id, images(url)')
+      .select('id, content, image_id, images!inner(url)')
+      .not('image_id', 'is', null)
       .order('id', { ascending: false })
       .then(({ data, error }) => {
         if (error) setError(error.message)
-        else setCaptions(data || [])
+        else {
+          const withImages = (data || []).filter(r => r.images?.url && r.content?.trim())
+          setCaptions(withImages)
+        }
         setLoading(false)
       })
   }, [])
