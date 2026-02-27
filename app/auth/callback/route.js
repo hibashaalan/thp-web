@@ -11,5 +11,5 @@ export async function GET(request) {
   }
 
   // send user somewhere after login:
-  return NextResponse.redirect(`${origin}/protected`)
+  return NextResponse.redirect(`${origin}/list`)
 }
