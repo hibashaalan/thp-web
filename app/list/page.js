@@ -13,22 +13,45 @@ export default function ListPage() {
   const [voteState, setVoteState] = useState(null)
   const [animating, setAnimating] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [user, setUser] = useState(null)
+  const [showLoginNudge, setShowLoginNudge] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase
-      .from('captions')
-      .select('id, content, image_id, images!inner(url)')
-      .not('image_id', 'is', null)
-      .order('id', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else {
-          const withImages = (data || []).filter(r => r.images?.url && r.content?.trim())
-          setCaptions(withImages)
-        }
-        setLoading(false)
-      })
+
+    async function load() {
+      // Get current user (may be null if not logged in)
+      const { data: userData } = await supabase.auth.getUser()
+      const userId = userData?.user?.id
+      setUser(userData?.user ?? null)
+
+      // Fetch all valid captions
+      const { data, error } = await supabase
+        .from('captions')
+        .select('id, content, image_id, images!inner(url)')
+        .not('image_id', 'is', null)
+        .order('id', { ascending: false })
+
+      if (error) { setError(error.message); setLoading(false); return }
+
+      let captions = (data || []).filter(r => r.images?.url && r.content?.trim())
+
+      // If logged in, filter out captions the user already voted on
+      if (userId) {
+        const { data: votes } = await supabase
+          .from('caption_votes')
+          .select('caption_id')
+          .eq('profile_id', userId)
+
+        const votedIds = new Set((votes || []).map(v => v.caption_id))
+        captions = captions.filter(c => !votedIds.has(c.id))
+      }
+
+      setCaptions(captions)
+      setLoading(false)
+    }
+
+    load()
   }, [])
 
   const current = captions[index]
@@ -45,6 +68,7 @@ export default function ListPage() {
 
   const vote = useCallback(async (value) => {
     if (saving || !current) return
+    if (!user) { setShowLoginNudge(true); setTimeout(() => setShowLoginNudge(false), 3000); return }
     setVoteState(value === 1 ? 'up' : 'down')
     setSaving(true)
     try {
@@ -246,6 +270,30 @@ export default function ListPage() {
               <KbdHint keys={['↓']} label="skip" />
               <KbdHint keys={['→']} label="funny" />
             </div>
+
+            {/* Login nudge */}
+            {showLoginNudge && (
+              <div style={{
+                position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+                background: 'var(--text)', color: 'var(--bg)',
+                padding: '12px 20px', borderRadius: 12,
+                fontSize: 14, fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: 12,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                zIndex: 999,
+                animation: 'fadeUp 0.3s ease both',
+                whiteSpace: 'nowrap',
+              }}>
+                Sign in to vote
+                <a href="/login" style={{
+                  background: 'var(--accent)', color: 'var(--text)',
+                  padding: '5px 12px', borderRadius: 7,
+                  fontWeight: 600, fontSize: 13,
+                }}>
+                  Sign in →
+                </a>
+              </div>
+            )}
           </div>
         )}
       </main>

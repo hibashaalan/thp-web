@@ -5,24 +5,15 @@ export async function POST(req) {
   try {
     const supabase = await createClient()
 
-    // Get logged-in user
     const { data: userData } = await supabase.auth.getUser()
     const user = userData?.user
-
     if (!user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
     const { captionId, vote } = await req.json()
-
     if (!captionId || (vote !== 1 && vote !== -1)) {
-      return NextResponse.json(
-        { error: 'Invalid payload' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
 
     const { data: insertData, error: insertError } = await supabase
@@ -36,20 +27,17 @@ export async function POST(req) {
       .select()
 
     if (insertError) {
+      // Duplicate vote — treat as success, not an error
+      if (insertError.code === '23505') {
+        return NextResponse.json({ ok: true, skipped: 'already voted' })
+      }
       console.log('VOTE INSERT ERROR:', insertError)
-      return NextResponse.json(
-        { error: insertError.message },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true, inserted: insertData })
-
   } catch (err) {
     console.error('SERVER ERROR:', err)
-    return NextResponse.json(
-      { error: 'Unexpected server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 })
   }
 }
