@@ -8,6 +8,9 @@ import Link from 'next/link'
 export default function ListPage() {
   const [captions, setCaptions] = useState([])
   const [index, setIndex] = useState(0)
+  const [totalSeen, setTotalSeen] = useState(0)
+  const STORAGE_KEY = 'almostcrackd_feed_id'
+  const SEEN_KEY = 'almostcrackd_feed_seen'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [voteState, setVoteState] = useState(null)
@@ -48,6 +51,15 @@ export default function ListPage() {
       }
 
       setCaptions(captions)
+      const savedId = localStorage.getItem(STORAGE_KEY)
+      const savedSeen = parseInt(localStorage.getItem(SEEN_KEY) || '0', 10)
+      if (savedId) {
+        const savedIndex = captions.findIndex(c => c.id === savedId)
+        if (savedIndex > 0) {
+          setIndex(savedIndex)
+          setTotalSeen(savedSeen || savedIndex)
+        }
+      }
       setLoading(false)
     }
 
@@ -57,10 +69,27 @@ export default function ListPage() {
   const current = captions[index]
   const isLast = index >= captions.length - 1
 
+  // Clear saved index when all captions are done
+  useEffect(() => {
+    if (!loading && captions.length > 0 && index >= captions.length) {
+      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(SEEN_KEY)
+    }
+  }, [index, captions.length, loading])
+
+  // Save current caption ID and seen count whenever index changes
+  useEffect(() => {
+    if (!loading && captions[index]) {
+      localStorage.setItem(STORAGE_KEY, captions[index].id)
+      localStorage.setItem(SEEN_KEY, String(totalSeen))
+    }
+  }, [index, captions, loading, totalSeen])
+
   const advance = useCallback((direction) => {
     setAnimating(direction)
     setTimeout(() => {
-      setIndex(i => i + 1)
+      setIndex(i => { const next = i + 1; return next })
+      setTotalSeen(s => s + 1)
       setVoteState(null)
       setAnimating(null)
     }, 380)
@@ -97,7 +126,6 @@ export default function ListPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [vote, skip])
 
-  const progress = captions.length > 0 ? (index / captions.length) * 100 : 0
 
   return (
     <>
@@ -129,27 +157,7 @@ export default function ListPage() {
             gap: 20,
             animation: 'fadeUp 0.4s ease both',
           }}>
-            {/* Progress */}
-            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                flex: 1, height: 4, background: 'var(--surface2)',
-                borderRadius: 4, overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${progress}%`,
-                  background: 'linear-gradient(90deg, var(--accent), var(--accent-light))',
-                  borderRadius: 4,
-                  transition: 'width 0.4s ease',
-                }} />
-              </div>
-              <span style={{
-                fontSize: 12, color: 'var(--text-muted)', fontWeight: 500,
-                whiteSpace: 'nowrap', flexShrink: 0, fontVariantNumeric: 'tabular-nums',
-              }}>
-                {index + 1} / {captions.length}
-              </span>
-            </div>
+
 
             {/* Card */}
             <div
